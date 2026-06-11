@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tokensqueezer"
+version = "1.0.0"
+description = "智能LLM Token压缩工具 - 减少60-95%的Token消耗"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [{name = "gitstq", email = "gitstq@users.noreply.github.com"}]
+keywords = ["llm", "token", "compression", "ai", "optimization"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Artificial Intelligence",
+]
+
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "tiktoken>=0.5.0",
+    "pydantic>=2.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov", "black", "isort", "flake8", "mypy"]
+web = ["fastapi>=0.100.0", "uvicorn>=0.23.0", "jinja2>=3.1.0"]
+
+[project.scripts]
+tokensqueezer = "tokensqueezer.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/gitstq/TokenSqueezer"
+Repository = "https://github.com/gitstq/TokenSqueezer"
+Issues = "https://github.com/gitstq/TokenSqueezer/issues"

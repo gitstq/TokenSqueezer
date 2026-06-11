@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TokenSqueezer - LLM Token智能压缩工具</title>
+    <style>
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #1a1d27;
+            --bg-tertiary: #242836;
+            --bg-card: #1e2230;
+            --border: #2d3348;
+            --text-primary: #e4e6f0;
+            --text-secondary: #8b90a5;
+            --text-muted: #5c6078;
+            --accent-blue: #4f8ff7;
+            --accent-green: #34d399;
+            --accent-purple: #a78bfa;
+            --accent-orange: #fb923c;
+            --accent-red: #f87171;
+            --accent-cyan: #22d3ee;
+            --radius: 12px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 头部 */
+        .header {
+            text-align: center;
+            padding: 40px 0 30px;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-blue);
+        }
+
+        .stat-card .label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .stat-card .value.blue { color: var(--accent-blue); }
+        .stat-card .value.green { color: var(--accent-green); }
+        .stat-card .value.purple { color: var(--accent-purple); }
+        .stat-card .value.orange { color: var(--accent-orange); }
+
+        /* 主面板 */
+        .main-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .main-panel { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        .panel-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .panel-body {
+            padding: 20px;
+        }
+
+        /* 文本区域 */
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            padding: 16px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+            line-height: 1.5;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-blue);
+        }
+
+        textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* 控制栏 */
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), #3b6fd4);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(79, 143, 247, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        select, input[type="range"] {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        select:focus, input[type="range"]:focus {
+            border-color: var(--accent-blue);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 6px;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .ratio-value {
+            color: var(--accent-green);
+            font-weight: 600;
+            min-width: 36px;
+            text-align: center;
+        }
+
+        /* 结果信息栏 */
+        .result-info {
+            display: flex;
+            gap: 20px;
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+        }
+
+        .result-info .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .result-info .info-label {
+            color: var(--text-secondary);
+        }
+
+        .result-info .info-value {
+            font-weight: 600;
+        }
+
+        .info-value.green { color: var(--accent-green); }
+        .info-value.blue { color: var(--accent-blue); }
+        .info-value.purple { color: var(--accent-purple); }
+
+        /* 历史记录 */
+        .history-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .history-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        .history-table td {
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .history-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .history-table tr:hover td {
+            background: var(--bg-tertiary);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-text { background: rgba(79,143,247,0.15); color: var(--accent-blue); }
+        .badge-json { background: rgba(52,211,153,0.15); color: var(--accent-green); }
+        .badge-code { background: rgba(167,139,250,0.15); color: var(--accent-purple); }
+        .badge-markdown { background: rgba(34,211,238,0.15); color: var(--accent-cyan); }
+        .badge-log { background: rgba(251,146,60,0.15); color: var(--accent-orange); }
+
+        /* 加载动画 */
+        .loading {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 20px;
+            color: var(--text-secondary);
+        }
+
+        .loading.active { display: flex; }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast通知 */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            animation: slideIn 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .toast-success { background: rgba(52,211,153,0.15); border: 1px solid var(--accent-green); color: var(--accent-green); }
+        .toast-error { background: rgba(248,113,113,0.15); border: 1px solid var(--accent-red); color: var(--accent-red); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* 底部 */
+        .footer {
+            text-align: center;
+            padding: 30px 0;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>TokenSqueezer</h1>
+            <p>智能LLM Token压缩工具 - 减少60-95%的Token消耗</p>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">总压缩次数</div>
+                <div class="value blue" id="stat-total">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">总节省Token</div>
+                <div class="value green" id="stat-saved">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">平均压缩率</div>
+                <div class="value purple" id="stat-avg">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">可用压缩器</div>
+                <div class="value orange" id="stat-compressors">5</div>
+            </div>
+        </div>
+
+        <!-- 主面板 -->
+        <div class="main-panel">
+            <!-- 输入面板 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>输入</h2>
+                    <span style="color:var(--text-muted);font-size:0.8rem" id="input-token-count">0 tokens</span>
+                </div>
+                <div class="panel-body">
+                    <textarea id="input-text" placeholder="在此输入要压缩的文本、JSON、代码、Markdown或日志内容..."></textarea>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-primary" id="btn-compress" onclick="compressText()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 3l10 5-10 5V3z"/></svg>
+                        压缩
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearAll()">清空</button>
+                    <div class="control-group">
+                        <label>类型:</label>
+                        <select id="content-type">
+                            <option value="">自动检测</option>
+                            <option value="text">文本</option>
+                            <option value="json">JSON</option>
+                            <option value="code">代码</option>
+                            <option value="markdown">Markdown</option>
+                            <option value="log">日志</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>压缩率:</label>
+                        <input type="range" id="ratio" min="10" max="90" value="50" oninput="updateRatioDisplay()">
+                        <span class="ratio-value" id="ratio-display">0.5</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 输出面板 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>输出</h2>
+                    <span style="color:var(--text-muted);font-size:0.8rem" id="output-token-count">0 tokens</span>
+                </div>
+                <div class="panel-body">
+                    <textarea id="output-text" readonly placeholder="压缩结果将显示在这里..."></textarea>
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <span>压缩中...</span>
+                    </div>
+                </div>
+                <div class="result-info" id="result-info" style="display:none">
+                    <div class="info-item">
+                        <span class="info-label">内容类型:</span>
+                        <span class="info-value blue" id="info-type">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">压缩器:</span>
+                        <span class="info-value purple" id="info-compressor">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">节省:</span>
+                        <span class="info-value green" id="info-saved">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">耗时:</span>
+                        <span class="info-value blue" id="info-time">-</span>
+                    </div>
+                    <button class="btn btn-secondary" style="margin-left:auto;padding:6px 12px;font-size:0.8rem" onclick="copyResult()">复制</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="history-panel">
+            <div class="panel-header">
+                <h2>压缩历史</h2>
+                <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.8rem" onclick="refreshStats()">刷新</button>
+            </div>
+            <div id="history-body">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p>暂无压缩记录</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部 -->
+        <div class="footer">
+            <p>TokenSqueezer v1.0.0 | <a href="https://github.com/gitstq/TokenSqueezer" target="_blank">GitHub</a> | MIT License</p>
+        </div>
+    </div>
+
+    <!-- Toast容器 -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // API基础URL
+        const API_BASE = '/api';
+
+        // 更新压缩率显示
+        function updateRatioDisplay() {
+            const slider = document.getElementById('ratio');
+            const display = document.getElementById('ratio-display');
+            display.textContent = (slider.value / 100).toFixed(1);
+        }
+
+        // 实时更新输入Token计数（估算）
+        document.getElementById('input-text').addEventListener('input', function() {
+            const text = this.value;
+            // 简单估算：中文约1.5字符/token，英文约4字符/token
+            let tokens = 0;
+            for (const char of text) {
+                if (char.charCodeAt(0) >= 0x4e00 && char.charCodeAt(0) <= 0x9fff) {
+                    tokens += 0.67;
+                } else {
+                    tokens += 0.25;
+                }
+            }
+            document.getElementById('input-token-count').textContent = Math.ceil(tokens) + ' tokens';
+        });
+
+        // 压缩文本
+        async function compressText() {
+            const inputText = document.getElementById('input-text').value.trim();
+            if (!inputText) {
+                showToast('请输入要压缩的文本', 'error');
+                return;
+            }
+
+            const contentType = document.getElementById('content-type').value;
+            const ratio = document.getElementById('ratio').value / 100;
+
+            const btn = document.getElementById('btn-compress');
+            const loading = document.getElementById('loading');
+
+            btn.disabled = true;
+            loading.classList.add('active');
+
+            try {
+                const response = await fetch(API_BASE + '/compress', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: inputText,
+                        content_type: contentType || null,
+                        ratio: ratio
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '压缩失败');
+                }
+
+                const result = await response.json();
+
+                // 显示结果
+                document.getElementById('output-text').value = result.compressed_text;
+                document.getElementById('output-token-count').textContent = result.compressed_tokens + ' tokens';
+                document.getElementById('info-type').textContent = result.content_type;
+                document.getElementById('info-compressor').textContent = result.compressor;
+                document.getElementById('info-saved').textContent = result.saved_tokens + ' (' + result.compression_percentage.toFixed(1) + '%)';
+                document.getElementById('info-time').textContent = result.elapsed_time.toFixed(4) + 's';
+                document.getElementById('result-info').style.display = 'flex';
+
+                showToast('压缩完成，节省 ' + result.saved_tokens + ' tokens', 'success');
+
+                // 刷新统计
+                refreshStats();
+
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('active');
+            }
+        }
+
+        // 刷新统计
+        async function refreshStats() {
+            try {
+                const response = await fetch(API_BASE + '/stats');
+                const stats = await response.json();
+
+                document.getElementById('stat-total').textContent = stats.total_compressions;
+                document.getElementById('stat-saved').textContent = formatNumber(stats.total_tokens_saved);
+                document.getElementById('stat-avg').textContent = stats.average_compression.toFixed(1) + '%';
+                document.getElementById('stat-compressors').textContent = stats.available_compressors.length;
+
+                // 刷新历史
+                refreshHistory();
+
+            } catch (error) {
+                console.error('获取统计失败:', error);
+            }
+        }
+
+        // 刷新历史记录
+        async function refreshHistory() {
+            try {
+                const response = await fetch(API_BASE + '/history');
+                const history = await response.json();
+
+                const body = document.getElementById('history-body');
+
+                if (history.length === 0) {
+                    body.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>暂无压缩记录</p></div>';
+                    return;
+                }
+
+                let html = '<table class="history-table"><thead><tr>';
+                html += '<th>类型</th><th>压缩器</th><th>原始</th><th>压缩后</th><th>节省</th><th>耗时</th>';
+                html += '</tr></thead><tbody>';
+
+                for (const item of history.reverse()) {
+                    html += '<tr>';
+                    html += '<td><span class="badge badge-' + item.content_type + '">' + item.content_type + '</span></td>';
+                    html += '<td>' + item.compressor + '</td>';
+                    html += '<td>' + item.original_tokens + '</td>';
+                    html += '<td>' + item.compressed_tokens + '</td>';
+                    html += '<td style="color:var(--accent-green)">' + item.saved_tokens + ' (' + item.compression_percentage + '%)</td>';
+                    html += '<td>' + item.elapsed_time + 's</td>';
+                    html += '</tr>';
+                }
+
+                html += '</tbody></table>';
+                body.innerHTML = html;
+
+            } catch (error) {
+                console.error('获取历史失败:', error);
+            }
+        }
+
+        // 清空所有
+        function clearAll() {
+            document.getElementById('input-text').value = '';
+            document.getElementById('output-text').value = '';
+            document.getElementById('input-token-count').textContent = '0 tokens';
+            document.getElementById('output-token-count').textContent = '0 tokens';
+            document.getElementById('result-info').style.display = 'none';
+        }
+
+        // 复制结果
+        function copyResult() {
+            const output = document.getElementById('output-text');
+            output.select();
+            navigator.clipboard.writeText(output.value).then(() => {
+                showToast('已复制到剪贴板', 'success');
+            }).catch(() => {
+                showToast('复制失败', 'error');
+            });
+        }
+
+        // 显示Toast通知
+        function showToast(message, type) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 格式化数字
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        // 页面加载时获取统计
+        refreshStats();
+
+        // 快捷键支持
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                compressText();
+            }
+        });
+    </script>
+</body>
+</html>
